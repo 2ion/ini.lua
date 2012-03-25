@@ -38,7 +38,9 @@ function ini:parse()
     self.data = {}
     local parent = self.data
     local match, smatch
+    local lineno = 0
     for line in self.handle:lines() do
+        lineno = lineno + 1
         match = string.match(line, "^%[(.+)%]$")
         if match then
             self.data[match] = {}
@@ -46,7 +48,7 @@ function ini:parse()
         else
             match, smatch = string.match(line, "^([%w]+)[%s]*=[%s]*([%w]*)$")
             if not match then
-                self:error("<" .. line .. ">: Invalid syntax.")
+                self:error("Line " .. lineno .. ": invalid syntax: <" .. line .. ">.")
             else
                 parent[match] = smatch
             end
