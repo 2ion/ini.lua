@@ -26,13 +26,30 @@
 
 ini = {}
 
-function ini:new()
+-- Returns a new ini object
+-- $1: The object may be initialized with a file path $1.
+function ini:new(path)
     local i = {}
     setmetatable(i, self)
     self.__index = self
+    if path then self.path = path end
     return i
 end
 
+-- Parses the file self.path points to as an INI file.
+-- Returns nil on failure and true on success.
+-- The file will be processed line by line. Line-specific parsing errors will be
+-- logged to the table at self.log in { ini-filepath, error-description }
+-- format.
+-- Data will be committed to self.data. INI syntax maps as follows:
+--
+-- [sectionname]
+-- key=value
+--
+-- becomes tostring(sectionname) = { tostring(key) = tostring(value) }
+-- effectively.
+-- Each subsequent section masks the previous section.
+-- Sections cannot be nested.
 function ini:parse()
     if not self.handle then return nil end
     self.data = {}
@@ -54,15 +71,22 @@ function ini:parse()
             end
         end
     end
+    return true
 end
 
+-- Parse the ini file at path or self.path and return the resulting table and
+-- error log.
 function ini:read(path)
-    self:open(path, "r")
+    self.path = path or self.path
+    self:open(self.path, "r")
     self:parse()
     self:close()
-    return self.data
+    return self.data, self.log
 end
 
+-- Write the data in a Lua table data or self.data to an INI file at path or
+-- self.path.
+-- Eventually opened INI file handles at self.handle will not be affected.
 function ini:write(path, data)
     local path = path or self.path
     local data = data or self.data
@@ -85,11 +109,13 @@ function ini:write(path, data)
     self.handle = self.handle_tmp or nil
 end
 
+-- Commit an error message log to self.log
 function ini:error(log)
     self.log = self.log or {}
     table.insert(self.log, { self.path, log })
 end
 
+-- Close eventually open file handles.
 function ini:close()
     if self.handle then
         self.handle:close()
@@ -97,6 +123,10 @@ function ini:close()
     end
 end
 
+-- Open a file at path in access mode mode.
+-- Mode defaults to "r".
+-- Will set self.path and self.handle if successful.
+-- Returns self.handle or nil.
 function ini:open(path, mode)
     self.handle = io.open(path, mode or "r")
     self.path = path
