@@ -24,6 +24,11 @@
     pt(S)
 --]]
 
+-- Test for Lua 5.2
+if setfenv then
+    error("ini.lua requires Lua >= 5.2 because of goto statements.")
+end
+
 ini = {}
 
 -- Returns a new ini object
@@ -58,6 +63,8 @@ function ini:parse()
     local lineno = 0
     for line in self.handle:lines() do
         lineno = lineno + 1
+        match = string.match(line, "^#.*$")
+        if match then goto continue end
         match = string.match(line, "^%[(.+)%]$")
         if match then
             self.data[match] = {}
@@ -70,6 +77,7 @@ function ini:parse()
                 parent[match] = smatch
             end
         end
+        ::continue::
     end
     return true
 end
