@@ -53,6 +53,7 @@ end
 --
 -- becomes tostring(sectionname) = { tostring(key) = tostring(value) }
 -- effectively.
+-- Lines starting with # will be ignored.
 -- Each subsequent section masks the previous section.
 -- Sections cannot be nested.
 function ini:parse()
