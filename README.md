@@ -3,8 +3,8 @@ This script implements a parser mapping .ini style configuration files to Lua
 tables and vice versa.
 
 # Usage
-<code>
-\#!/usr/bin/env lua
+```lua
+#!/usr/bin/env lua
 
 require("ini")
 T = ini:new()
@@ -27,7 +27,7 @@ function pt(t)
     end
 end
 pt(S)
-</code>
+```
 
 # License
 Copyright (c) 2012 Jens Oliver John
