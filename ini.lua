@@ -4,24 +4,6 @@
     Written by Jens Oliver John <jens.o.john.at.gmail.com>
     Licensed under the GNU General Public License v3.
     This program is just a quick hack and nothing solid.
-
-    Demo:
-    require("ini")
-    T = ini:new()
-    T:write("TEST.INI", { general = { A = "42" }, bofh = { conf = 0 }})
-    S = T:read("TEST.INI")
-    -- print table
-    function pt(t)
-        for k,v in pairs(t) do
-            if type(v)=="table" then
-                print("["..k.."]")
-                pt(v)
-            else
-                print(k,v)
-            end
-        end
-    end
-    pt(S)
 --]]
 
 -- Test for Lua 5.2
@@ -29,10 +11,9 @@ if setfenv then
     error("ini.lua requires Lua >= 5.2 because of goto statements.")
 end
 
-ini = {}
-
 -- Returns a new ini object
 -- $1: The object may be initialized with a file path $1.
+ini = {}
 function ini:new(path)
     local i = {}
     setmetatable(i, self)
@@ -50,11 +31,11 @@ end
 --
 -- [sectionname]
 -- key=value
+-- #somecomment
 --
 -- becomes tostring(sectionname) = { tostring(key) = tostring(value) }
--- effectively.
--- Lines starting with # will be ignored.
--- Each subsequent section masks the previous section.
+-- effectively. Lines starting with # will be ignored.
+-- Each subsequent section overrides the previous section.
 -- Sections cannot be nested.
 function ini:parse()
     if not self.handle then return nil end
