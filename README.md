@@ -4,7 +4,7 @@ tables and vice versa.
 
 # Usage
 <code>
-#!/usr/bin/env lua
+\#!/usr/bin/env lua
 
 require("ini")
 T = ini:new()
