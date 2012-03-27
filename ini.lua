@@ -64,6 +64,47 @@ function ini:parse()
     return true
 end
 
+function ini:parseNested()
+    -- mapping regex -> handler
+    local tree = {}
+    tree["^[%s]*#.*$"] =
+        function (match, vmatch, parent, lineno) 
+            return 
+        end
+
+    tree["^[%s]*%[(.+)%]$"] = 
+        function(match, vmatch, parent, lineno)
+            if not parent[#parent][match] then
+                parent[#parent][match] = {}
+            end
+            table.insert(parent, parent[#parent][match])
+        end
+
+    tree["^[%s]*%[/%]$"] = 
+        function(match, vmatch, parent, lineno)
+            table.remove(parent)
+        end
+
+    tree["^[%s]*([%w]+)[%s]*=[%s]*([%w]*)$"] = 
+        function(match, vmatch, parent, lineno)
+            parent[match] = vmatch
+        end
+
+    self.data = {}
+    local parent = { self.data }
+    local match, vmatch
+    local lineno = 0
+    for line in self.handle:lines() do
+        lineno = lineno + 1
+        for regex,handler in pairs(tree) do
+            match, vmatch = string.match(line, regex)
+            if match then
+                handler(match, vmatch, parent, lineno)
+            end
+        end
+    end
+end
+
 -- Parse the ini file at path or self.path and return the resulting table and
 -- error log.
 function ini:read(path)
