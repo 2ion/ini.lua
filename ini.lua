@@ -87,7 +87,7 @@ function ini:parseNested()
 
     tree["^[%s]*([%w]+)[%s]*=[%s]*([%w]*)$"] = 
         function(match, vmatch, parent, lineno)
-            parent[match] = vmatch
+            parent[#parent][match] = vmatch
         end
 
     self.data = {}
