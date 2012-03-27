@@ -84,6 +84,7 @@ function ini:parseNested()
         function(match, vmatch, parent, lineno)
             table.remove(parent)
         end
+    tree["^[%s]*%[/.*%]$"] = tree["^[%s]*%[/%]$"] 
 
     tree["^[%s]*([%w]+)[%s]*=[%s]*([%w]*)$"] = 
         function(match, vmatch, parent, lineno)
