@@ -13,7 +13,7 @@ end
 
 -- Returns a new ini object
 -- $1: The object may be initialized with a file path $1.
-ini = {}
+local ini = {}
 function ini:new(path)
     local i = {}
     setmetatable(i, self)
@@ -198,3 +198,5 @@ function ini:open(path, mode)
     self.path = path
     return self.handle or nil
 end
+
+return ini

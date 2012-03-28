@@ -6,7 +6,7 @@ tables and vice versa.
 ```lua
 #!/usr/bin/env lua
 
-require("ini")
+ini = require("ini")
 T = ini:new()
 
 -- Write to TEST.INI
