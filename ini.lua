@@ -103,10 +103,9 @@ function ini:parseNested()
             if matches[1] then 
                 handler(matches, parent, lineno)
                 line_processed = true
-                goto continue
+                break
             end
         end
-        ::continue::
         if not line_processed then
             self:error("Line " .. lineno .. ": error: Could not parse, because no pattern matched.")
         else
