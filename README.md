@@ -13,7 +13,8 @@ T = ini:new()
 T:write("TEST.INI", { general = { A = "42" }, bofh = { conf = 0 }})
 
 -- Read back whatever went into TEST.INI
-S = T:read("TEST.INI")
+-- $2 ~= nil -> parse as a nested INI file.
+S = T:read("TEST.INI", true)
 
 -- Print what we've got
 function pt(t)
