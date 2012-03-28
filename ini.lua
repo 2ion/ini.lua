@@ -68,39 +68,39 @@ function ini:parseNested()
     -- mapping regex -> handler
     local tree = {}
     tree["^[%s]*#.*$"] =
-        function (match, vmatch, parent, lineno) 
+        function (matches, parent, lineno) 
             return 
         end
 
     tree["^[%s]*%[(.+)%]$"] = 
-        function(match, vmatch, parent, lineno)
-            if not parent[#parent][match] then
-                parent[#parent][match] = {}
+        function(matches, parent, lineno)
+            if not parent[#parent][matches[1]] then
+                parent[#parent][matches[1]] = {}
             end
-            table.insert(parent, parent[#parent][match])
+            table.insert(parent, parent[#parent][matches[1]])
         end
 
     tree["^[%s]*%[/%]$"] = 
-        function(match, vmatch, parent, lineno)
+        function(matches, parent, lineno)
             table.remove(parent)
         end
     tree["^[%s]*%[/.*%]$"] = tree["^[%s]*%[/%]$"] 
 
     tree["^[%s]*([%w]+)[%s]*=[%s]*([%w]*)$"] = 
-        function(match, vmatch, parent, lineno)
-            parent[#parent][match] = vmatch
+        function(matches, parent, lineno)
+            parent[#parent][matches[1]] = matches[2]
         end
 
     self.data = {}
     local parent = { self.data }
-    local match, vmatch
+    local matches
     local lineno = 0
     for line in self.handle:lines() do
         lineno = lineno + 1
         for regex,handler in pairs(tree) do
-            match, vmatch = string.match(line, regex)
-            if match then
-                handler(match, vmatch, parent, lineno)
+            matches = { string.match(line, regex) }
+            if matches[1] then 
+                handler(matches, parent, lineno)
             end
         end
     end
