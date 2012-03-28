@@ -95,23 +95,36 @@ function ini:parseNested()
     local parent = { self.data }
     local matches
     local lineno = 0
+    local line_processed = false
     for line in self.handle:lines() do
         lineno = lineno + 1
         for regex,handler in pairs(tree) do
             matches = { string.match(line, regex) }
             if matches[1] then 
                 handler(matches, parent, lineno)
+                line_processed = true
+                goto continue
             end
+        end
+        ::continue::
+        if not line_processed then
+            self:error("Line " .. lineno .. ": error: Could not parse, because no pattern matched.")
+        else
+            line_processed = false
         end
     end
 end
 
 -- Parse the ini file at path or self.path and return the resulting table and
 -- error log.
-function ini:read(path)
+function ini:read(path, isNested)
     self.path = path or self.path
     self:open(self.path, "r")
-    self:parse()
+    if isNested then
+        self:parse()
+    else
+        self:parseNested()
+    end
     self:close()
     return self.data, self.log
 end
