@@ -120,9 +120,11 @@ function ini:read(path, isNested)
     self.path = path or self.path
     self:open(self.path, "r")
     if isNested then
-        self:parse()
-    else
         self:parseNested()
+        self.is_nested = true
+    else
+        self:parse()
+        self.is_nested = false
     end
     self:close()
     return self.data, self.log
@@ -134,10 +136,12 @@ end
 function ini:write(path, data)
     local path = path or self.path
     local data = data or self.data
+
     if self.handle then
         self.handle_tmp = self.handle
     end
     self:open(path, "w")
+
     local function write_table(t)
         for k,v in pairs(t) do
             if type(v) == "table" then
@@ -148,7 +152,25 @@ function ini:write(path, data)
             end
         end
     end
-    write_table(data)
+
+    local function write_table_nested(t)
+        for k,v in pairs(t) do
+            if type(v) == "table" then
+                self.handle:write("["..tostring(k).."]\n")
+                write_table_nested(t[k])
+                self.handle:write("[/"..tostring(k).."]\n")
+            else
+                self.handle:write(tostring(k).."="..tostring(v).."\n")
+            end
+        end
+    end
+
+    if self.is_nested then
+        write_table_nested(data)
+    else
+        write_table(data)
+    end
+
     self.handle:close()
     self.handle = self.handle_tmp or nil
 end
