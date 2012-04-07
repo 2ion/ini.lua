@@ -3,13 +3,9 @@
     R/W access to .INI style configuration files
     Written by Jens Oliver John <jens.o.john.at.gmail.com>
     Licensed under the GNU General Public License v3.
-    This program is just a quick hack and nothing solid.
---]]
 
--- Test for Lua 5.2
-if setfenv then
-    error("ini.lua requires Lua >= 5.2 because of goto statements.")
-end
+    Needs Lua >= 5.0
+--]]
 
 -- Returns a new ini object
 -- $1: The object may be initialized with a file path $1.
@@ -45,27 +41,30 @@ function ini:parse()
     local lineno = 0
     for line in self.handle:lines() do
         lineno = lineno + 1
+
+        -- Grep for comment
         match = string.match(line, "^#.*$")
-        if match then goto continue end
-        match = string.match(line, "^%[(.+)%]$")
-        if match then
-            self.data[match] = {}
-            parent = self.data[match]
-        else
-            match, smatch = string.match(line, "^([%w]+)[%s]*=[%s]*([%w]*)$")
-            if not match then
-                self:error("Line " .. lineno .. ": invalid syntax: <" .. line .. ">.")
-            else
-                parent[match] = smatch
+        if not match then -- grep for section start
+            match = string.match(line, "^%[(.+)%]$")
+            if match then
+                self.data[match] = {}
+                parent = self.data[match]
+            else -- grep for key-value-pair
+                match, smatch = string.match(line, "^([%w]+)[%s]*=[%s]*([%w]*)$")
+                if not match then
+                    self:error("Line " .. lineno .. ": invalid syntax: <" .. line .. ">.")
+                else
+                    parent[match] = smatch
+                end
             end
         end
-        ::continue::
+
     end
     return true
 end
 
 function ini:parseNested()
-    -- mapping regex -> handler
+    -- mappings regex -> handler
     local tree = {}
     tree["^[%s]*#.*$"] =
         function (matches, parent, lineno) 
