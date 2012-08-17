@@ -7,7 +7,7 @@
 
 -- Returns a new ini object
 -- $1: The object may be initialized with a file path $1.
-local ini = {}
+local ini = { version=1.1 }
 function ini:new(path)
     local i = {}
     setmetatable(i, self)
