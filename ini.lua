@@ -3,8 +3,6 @@
     R/W access to .INI style configuration files
     Written by Jens Oliver John <jens.o.john.at.gmail.com>
     Licensed under the GNU General Public License v3.
-
-    Needs Lua >= 5.0
 --]]
 
 -- Returns a new ini object
@@ -32,7 +30,8 @@ end
 -- becomes tostring(sectionname) = { tostring(key) = tostring(value) }
 -- effectively. Lines starting with # will be ignored.
 -- Each subsequent section overrides the previous section.
--- Sections cannot be nested.
+-- Sections cannot be nested here. See ini:parseNested() how to parse
+-- nested INI files.
 function ini:parse()
     if not self.handle then return nil end
     self.data = {}
@@ -63,6 +62,27 @@ function ini:parse()
     return true
 end
 
+
+-- This implementation parses INI files with nested sections.
+-- ini.lua cannot yet decide by itself if a file is nested | unnested,
+-- so you have to explicitly select nested-style parsing by passing a
+-- non-false and non-nil second argument to ini:read().
+-- So the new grammar looks like:
+--
+-- [sectionname]
+-- key1=value
+-- key2=value
+-- [section2]
+-- key3=value
+-- key1=value
+-- [/section2]
+-- key=value
+-- [/sectionname]
+--
+-- and maps to { sectionname = { key1=v, key2=v, section2 = { ... },
+-- key=v } }. Entries will not be reordered.
+-- as for the closing tag [/$NAME], it may be shortened to [/] in order
+-- to close the section opened last.
 function ini:parseNested()
     -- mappings regex -> handler
     local tree = {}
