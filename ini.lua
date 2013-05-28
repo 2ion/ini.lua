@@ -5,217 +5,122 @@
     Licensed under the GNU General Public License v3.
 --]]
 
--- Returns a new ini object
--- $1: The object may be initialized with a file path $1.
-local ini = { version=1.1 }
-function ini:new(path)
-    local i = {}
-    setmetatable(i, self)
-    self.__index = self
-    if path then self.path = path end
-    return i
-end
+local Path = require("pl.path")
 
--- Parses the file self.path points to as an INI file.
--- Returns nil on failure and true on success.
--- The file will be processed line by line. Line-specific parsing errors will be
--- logged to the table at self.log in { ini-filepath, error-description }
--- format.
--- Data will be committed to self.data. INI syntax maps as follows:
---
--- [sectionname]
--- key=value
--- #somecomment
---
--- becomes tostring(sectionname) = { tostring(key) = tostring(value) }
--- effectively. Lines starting with # will be ignored.
--- Each subsequent section overrides the previous section.
--- Sections cannot be nested here. See ini:parseNested() how to parse
--- nested INI files.
-function ini:parse()
-    if not self.handle then return nil end
-    self.data = {}
-    local parent = self.data
-    local match, smatch
-    local lineno = 0
-    for line in self.handle:lines() do
-        lineno = lineno + 1
-
-        -- Grep for comment
-        match = string.match(line, "^#.*$")
-        if not match then -- grep for section start
-            match = string.match(line, "^%[(.+)%]$")
-            if match then
-                self.data[match] = {}
-                parent = self.data[match]
-            else -- grep for key-value-pair
-                match, smatch = string.match(line, "^([%w]+)[%s]*=[%s]*([%w]*)$")
-                if not match then
-                    self:error("Line " .. lineno .. ": invalid syntax: <" .. line .. ">.")
-                else
-                    parent[match] = smatch
-                end
-            end
+local function debug_print(t, section)
+    for k,v in pairs(t) do
+        if type(v) == "table" then
+            p(v, k)
+        else
+            print(section or "", k,v)
         end
-
     end
-    return true
 end
 
+local function read(file)
+    if not Path.isfile(file) then return nil end
+   
+    local file = io.open(file, "r")
+    local data = {}
+    local rejected = {}
+    local parent = data
+    local i = 0
+    local m, n
 
--- This implementation parses INI files with nested sections.
--- ini.lua cannot yet decide by itself if a file is nested | unnested,
--- so you have to explicitly select nested-style parsing by passing a
--- non-false and non-nil second argument to ini:read().
--- So the new grammar looks like:
---
--- [sectionname]
--- key1=value
--- key2=value
--- [section2]
--- key3=value
--- key1=value
--- [/section2]
--- key=value
--- [/sectionname]
---
--- and maps to { sectionname = { key1=v, key2=v, section2 = { ... },
--- key=v } }. Entries will not be reordered.
--- as for the closing tag [/$NAME], it may be shortened to [/] in order
--- to close the section opened last.
-function ini:parseNested()
-    -- mappings regex -> handler
-    local tree = {}
-    tree["^[%s]*#.*$"] =
-        function (matches, parent, lineno) 
-            return 
+    local function parse(line)
+        local m, n
+
+        -- kv-pair
+        m,n = line:match("^([%w]-)=(.*)$")
+        if m then
+            parent[m] = n
+            return true
         end
 
-    tree["^[%s]*%[(.+)%]$"] = 
-        function(matches, parent, lineno)
+        -- section opening
+        m = line:match("^%[(.+)%]$")
+        if m then
+            data[m] = {}
+            parent = data[m]
+            return true
+        end
+
+        -- comment
+        if line:match("^#") then
+            return true
+        end
+
+        return false
+    end
+
+    for line in file:lines() do
+        i = i + 1
+        if not parse(line) then
+            rejected[i] = line
+        end
+    end
+
+  return data, rejected
+end
+
+local function read_nested(file)
+    if not Path.isfile(file) then return nil end
+
+     -- map regex -> handler
+    local map = {}
+
+    -- comments
+    map["^#"] = function () return end
+
+    -- section opening
+    map["^[%s]*%[(.+)%]$"] = 
+        function(matches, parent)
             if not parent[#parent][matches[1]] then
                 parent[#parent][matches[1]] = {}
             end
             table.insert(parent, parent[#parent][matches[1]])
         end
 
-    tree["^[%s]*%[/%]$"] = 
-        function(matches, parent, lineno)
+    -- section closing. 
+    map["^[%s]*%[/%]$"] = 
+        function(matches, parent)
             table.remove(parent)
         end
-    tree["^[%s]*%[/.*%]$"] = tree["^[%s]*%[/%]$"] 
+    map["^[%s]*%[/.*%]$"] = map["^[%s]*%[/%]$"] 
 
-    tree["^[%s]*([%w]+)[%s]*=[%s]*([%w]*)$"] = 
-        function(matches, parent, lineno)
+    -- kv-pair
+    map["^[%s]*([%w]+)=(.*)$"] = 
+        function(matches, parent)
             parent[#parent][matches[1]] = matches[2]
         end
 
-    self.data = {}
-    local parent = { self.data }
+    local file = io.open(file, "r")
+    local data = {}
+    local parent = { data }
+    local rejected = {}
     local matches
-    local lineno = 0
+    local i = 0
     local line_processed = false
-    for line in self.handle:lines() do
-        lineno = lineno + 1
-        for regex,handler in pairs(tree) do
+
+    for line in file:lines() do
+        i = i + 1
+        line_processed = false
+
+        for regex,handler in pairs(map) do
             matches = { string.match(line, regex) }
             if matches[1] then 
-                handler(matches, parent, lineno)
+                handler(matches, parent)
                 line_processed = true
                 break
             end
         end
+
         if not line_processed then
-            self:error("Line " .. lineno .. ": error: Could not parse, because no pattern matched.")
-        else
-            line_processed = false
-        end
-    end
-end
-
--- Parse the ini file at path or self.path and return the resulting table and
--- error log.
-function ini:read(path, isNested)
-    self.path = path or self.path
-    self:open(self.path, "r")
-    if isNested then
-        self:parseNested()
-        self.is_nested = true
-    else
-        self:parse()
-        self.is_nested = false
-    end
-    self:close()
-    return self.data, self.log
-end
-
--- Write the data in a Lua table data or self.data to an INI file at path or
--- self.path.
--- Eventually opened INI file handles at self.handle will not be affected.
-function ini:write(path, data)
-    local path = path or self.path
-    local data = data or self.data
-
-    if self.handle then
-        self.handle_tmp = self.handle
-    end
-    self:open(path, "w")
-
-    local function write_table(t)
-        for k,v in pairs(t) do
-            if type(v) == "table" then
-                self.handle:write("["..tostring(k).."]\n")
-                write_table(t[k])
-            else
-                self.handle:write(tostring(k).."="..tostring(v).."\n")
-            end
+            rejected[i] = line
         end
     end
 
-    local function write_table_nested(t)
-        for k,v in pairs(t) do
-            if type(v) == "table" then
-                self.handle:write("["..tostring(k).."]\n")
-                write_table_nested(t[k])
-                self.handle:write("[/"..tostring(k).."]\n")
-            else
-                self.handle:write(tostring(k).."="..tostring(v).."\n")
-            end
-        end
-    end
-
-    if self.is_nested then
-        write_table_nested(data)
-    else
-        write_table(data)
-    end
-
-    self.handle:close()
-    self.handle = self.handle_tmp or nil
+    return data, rejected
 end
 
--- Commit an error message log to self.log
-function ini:error(log)
-    self.log = self.log or {}
-    table.insert(self.log, { self.path, log })
-end
-
--- Close eventually open file handles.
-function ini:close()
-    if self.handle then
-        self.handle:close()
-        self.handle = nil
-    end
-end
-
--- Open a file at path in access mode mode.
--- Mode defaults to "r".
--- Will set self.path and self.handle if successful.
--- Returns self.handle or nil.
-function ini:open(path, mode)
-    self.handle = io.open(path, mode or "r")
-    self.path = path
-    return self.handle or nil
-end
-
-return ini
+return { read = read, read_nested = read_nested }
