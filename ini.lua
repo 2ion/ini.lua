@@ -60,7 +60,7 @@ local function read(file)
     for line in file:lines() do
         i = i + 1
         if not parse(line) then
-            rejected[i] = line
+            table.insert(rejected, i)
         end
     end
     file:close()
@@ -70,62 +70,68 @@ end
 local function read_nested(file)
     if not Path.isfile(file) then return nil end
 
-     -- map regex -> handler
-    local map = {}
-
-    -- comments
-    map["^#"] = function () return end
-
-    -- section opening
-    map["^[%s]*%[([^/.]+)%]$"] = 
-        function(matches, parent)
-            if not parent[#parent][matches[1]] then
-                parent[#parent][matches[1]] = {}
-            end
-            table.insert(parent, parent[#parent][matches[1]])
-        end
-
-    -- section closing. 
-    map["^[%s]*%[/%]$"] = 
-        function(matches, parent)
-            table.remove(parent)
-        end
-    map["^[%s]*%[/.*%]$"] = map["^[%s]*%[/%]$"] 
-
-    -- kv-pair
-    map["^[%s]*([%w]+)=(.*)$"] = 
-        function(matches, parent)
-            parent[#parent][matches[1]] = matches[2]
-        end
-
     local file = io.open(file, "r")
-    local data = {}
-    local parent = { data }
-    local rejected = {}
-    local matches
+    local d = {}
+    local h = {}
+    local r = {}
+    local p = d
     local i = 0
-    local line_processed = false
+
+    local function parse(line)
+        local m, n
+
+        m = line:match("^[%s]*%[([^/.]+)%]$")
+        if m then
+            table.insert(h, { p, m=m })
+            p[m] = {}
+            p = p[m]
+            return true
+        end
+
+        m = line:match("^[%s]*%[/([^/.]+)%]$")
+        if m then
+            if #h == 0 or h[#h].m ~= m then
+                return nil
+            end
+            p = table.remove(h).p
+            if not p then p = d end
+            return true
+        end
+
+        if line:match("[%s]*%[/%]") then
+            if #h == 0 then
+                return nil
+            end
+            p = table.remove(h).p
+            return true
+        end
+
+        m,n = line:match("^[%s]*([%w]-)=(.*)$")
+        if m then
+            p[m] = n
+            return true
+        end
+
+        if line:match("^$") then
+            return true
+        end
+
+        if line:match("^#") then
+            return true
+        end
+
+        return nil
+    end
 
     for line in file:lines() do
         i = i + 1
-        line_processed = false
-
-        for regex,handler in pairs(map) do
-            matches = { string.match(line, regex) }
-            if matches[1] then 
-                handler(matches, parent)
-                line_processed = true
-                break
-            end
-        end
-
-        if not line_processed then
-            rejected[i] = line
+        if not parse(line) then
+            table.insert(r, i)
         end
     end
-    
+
     file:close()
-    return data, rejected
+    return d, r
 end
 
 local function write(file, data)
@@ -160,13 +166,9 @@ local function write_nested(file, data)
     return true
 end
 
-print(write("./output.ini", { CategoryA={ somekey="somevalue" }, CategoryB={ anotherkey="canothervalue", number=42 } }))
-local a,b = read("output.ini")
-print(write("outputcopy.ini", a))
-
-print(write_nested("outnested.ini", { A={ a="hello World!", sub={ b="hello universe!"} }, B={ somekey=42 } }))
-local c,d = read("outnested.ini")
-print(write_nested("outnested2.ini", c))
+write_nested("outnested.ini", { A={ a="hello World!", sub={ b="hello universe!"} }, B={ somekey=42 } })
+local c,d = read_nested("outnested.ini")
+write_nested("outnested2.ini", c)
 
 
 return { read = read, read_nested = read_nested }
