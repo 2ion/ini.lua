@@ -45,6 +45,10 @@ local function read(file)
             return true
         end
 
+        if line:match("^$") then
+            return true
+        end
+
         -- comment
         if line:match("^#") then
             return true
