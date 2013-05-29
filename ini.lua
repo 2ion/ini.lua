@@ -59,8 +59,8 @@ local function read(file)
             rejected[i] = line
         end
     end
-
-  return data, rejected
+    file:close()
+    return data, rejected
 end
 
 local function read_nested(file)
@@ -73,7 +73,7 @@ local function read_nested(file)
     map["^#"] = function () return end
 
     -- section opening
-    map["^[%s]*%[(.+)%]$"] = 
+    map["^[%s]*%[([^/.]+)%]$"] = 
         function(matches, parent)
             if not parent[#parent][matches[1]] then
                 parent[#parent][matches[1]] = {}
@@ -119,8 +119,50 @@ local function read_nested(file)
             rejected[i] = line
         end
     end
-
+    
+    file:close()
     return data, rejected
 end
+
+local function write(file, data)
+    if type(data) ~= "table" then return nil end
+    local file = io.open(file, "w")
+    for s,t in pairs(data) do
+        file:write(string.format("[%s]\n", s))
+        for k,v in pairs(t) do
+            file:write(string.format("%s=%s\n", tostring(k), tostring(v)))
+        end
+    end
+    file:close()
+    return true
+end
+
+local function write_nested(file, data)
+    if type(data) ~= "table" then return nil end
+    local file = io.open(file, "w")
+    local function w(t)
+        for i,j in pairs(t) do
+            if type(j) == "table" then
+                file:write(string.format("[%s]\n", i))
+                w(j)
+                file:write(string.format("[/%s]\n", i))
+            else
+                file:write(string.format("%s=%s\n", tostring(i), tostring(j)))
+            end
+        end
+    end
+    w(data)
+    file:close()
+    return true
+end
+
+print(write("./output.ini", { CategoryA={ somekey="somevalue" }, CategoryB={ anotherkey="canothervalue", number=42 } }))
+local a,b = read("output.ini")
+print(write("outputcopy.ini", a))
+
+print(write_nested("outnested.ini", { A={ a="hello World!", sub={ b="hello universe!"} }, B={ somekey=42 } }))
+local c,d = read("outnested.ini")
+print(write_nested("outnested2.ini", c))
+
 
 return { read = read, read_nested = read_nested }
