@@ -62,10 +62,19 @@ jp=nanimo
 * Every key and value to be written must be convertable to a string
   using tostring()
 * No extensive error checking yet
+* No autodetection of nested/unnested file format yet
 
 ```lua
-
 local ini = require("ini")
+
+ini.read(infile)
+ini.write(outfile, data)
+
+ini.read_nested(infile)
+ini.write_nested(outfile, data)
+```
+
+```lua
 
 --- Flat INI files
 
