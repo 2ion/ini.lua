@@ -80,6 +80,7 @@ local function read_nested(file)
     local function parse(line)
         local m, n
 
+        -- section opening
         m = line:match("^[%s]*%[([^/.]+)%]$")
         if m then
             table.insert(h, { p, m=m })
@@ -88,6 +89,7 @@ local function read_nested(file)
             return true
         end
 
+        -- section closing
         m = line:match("^[%s]*%[/([^/.]+)%]$")
         if m then
             if #h == 0 or h[#h].m ~= m then
@@ -98,28 +100,24 @@ local function read_nested(file)
             return true
         end
 
-        if line:match("[%s]*%[/%]") then
-            if #h == 0 then
-                return nil
-            end
-            p = table.remove(h).p
-            return true
-        end
-
+        -- kv-pair
         m,n = line:match("^[%s]*([%w]-)=(.*)$")
         if m then
             p[m] = n
             return true
         end
 
+        -- ignore empty lines
         if line:match("^$") then
             return true
         end
 
+        -- ignore comments
         if line:match("^#") then
             return true
         end
 
+        -- reject everything else
         return nil
     end
 
@@ -166,9 +164,4 @@ local function write_nested(file, data)
     return true
 end
 
-write_nested("outnested.ini", { A={ a="hello World!", sub={ b="hello universe!"} }, B={ somekey=42 } })
-local c,d = read_nested("outnested.ini")
-write_nested("outnested2.ini", c)
-
-
-return { read = read, read_nested = read_nested }
+return { read = read, read_nested = read_nested, write = write, write_nested = write_nested }
