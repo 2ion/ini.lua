@@ -46,7 +46,7 @@ local function read(file)
         local m, n
 
         -- kv-pair
-        m,n = line:match("^([%w]-)=(.*)$")
+        m,n = line:match("^([%w%p]-)=(.*)$")
         if m then
             parent[m] = n
             return true
@@ -116,7 +116,7 @@ local function read_nested(file)
         end
 
         -- kv-pair
-        m,n = line:match("^[%s]*([%w]-)=(.*)$")
+        m,n = line:match("^[%s]*([%w%p]-)=(.*)$")
         if m then
             p[m] = n
             return true
@@ -179,4 +179,4 @@ local function write_nested(file, data)
     return true
 end
 
-return { read = read, read_nested = read_nested, write = write, write_nested = write_nested }
+return { read = read, read_nested = read_nested, write = write, write_nested = write_nested, debug_print = debug_print }
