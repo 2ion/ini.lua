@@ -22,12 +22,12 @@
 
 local Path = require("pl.path")
 
-local function debug_print(t, section)
+local function debug_enum(t, section)
     for k,v in pairs(t) do
         if type(v) == "table" then
-            p(v, k)
+            debug_enum(v, tostring(k))
         else
-            print(section or "", k,v)
+            print(section or "", k, "", "",v)
         end
     end
 end
@@ -53,7 +53,7 @@ local function read(file)
         end
 
         -- section opening
-        m = line:match("^%[(.+)%]$")
+        m = line:match("^%[([%w%p]+)%][%s]*")
         if m then
             data[m] = {}
             parent = data[m]
@@ -107,7 +107,8 @@ local function read_nested(file)
         -- section closing
         m = line:match("^[%s]*%[/([^/.]+)%]$")
         if m then
-            if #h == 0 or h[#h].m ~= m then
+            local hl = #h
+            if hl == 0 or h[hl].m ~= m then
                 return nil
             end
             p = table.remove(h).p
@@ -179,4 +180,4 @@ local function write_nested(file, data)
     return true
 end
 
-return { read = read, read_nested = read_nested, write = write, write_nested = write_nested, debug_print = debug_print }
+return { read = read, read_nested = read_nested, write = write, write_nested = write_nested, debug = { enum = debug_enum } }
