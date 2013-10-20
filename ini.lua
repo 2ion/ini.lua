@@ -23,27 +23,17 @@ local Path = require("pl.path")
 local ffi = require("ffi")
 
 ffi.cdef([[
-enum base64_encodestep
-{
-	step_A, step_B, step_C
-};
-
-struct base64_encodestate 
-{
-	enum base64_encodestep step;
-	char result;
-	int stepcount;
-};
+enum base64_encodestep { step_A, step_B, step_C };
+struct base64_encodestate { enum base64_encodestep step; char result; int stepcount; };
+enum base64_decodestep { step_a, step_b, step_c, step_d };
+struct base64_decodestate { enum base64_decodestep step; char plainchar; };
 
 void base64_init_encodestate(struct base64_encodestate* state_in);
 char base64_encode_value(char value_in);
 int base64_encode_block(const char* plaintext_in, int length_in,
     char* code_out, struct base64_encodestate* state_in);
+
 int base64_encode_blockend(char* code_out, struct base64_encodestate* state_in);
-
-enum base64_decodestep { step_a, step_b, step_c, step_d };
-struct base64_decodestate { enum base64_decodestep step; char plainchar; };
-
 void base64_init_decodestate(struct base64_decodestate* state_in);
 int base64_decode_value(char value_in);
 int base64_decode_block(const char* code_in, const int length_in,
@@ -52,6 +42,10 @@ int base64_decode_block(const char* code_in, const int length_in,
 
 local b64 = ffi.load("libb64.so.0d")
 
+--- Encode the data in str to base64.
+-- @param str input string, can hold arbitrary binary data
+-- @return Lua string with the base64 representation, base64 byte count
+-- @see base64_decode()
 local function base64_encode(str)
     local str = type(str) == "string" and str or tostring(str)
     local len = #str + 1 -- we also encode empty strings
@@ -67,6 +61,11 @@ local function base64_encode(str)
     return ffi.string(buf), cnt
 end
 
+--- Decode a string holding base64 encoded data to a Lua string. The
+-- resulting string may hold arbitrary binary data.
+-- @param b64str Lua string, base64 encoded data
+-- @return Lua string with the deoded data, conversion byte count
+-- @see base64_encode()
 local function base64_decode(b64str)
     local len = #b64str + 1
     local inbuf = ffi.new("char[?]", len, b64str)
@@ -80,6 +79,11 @@ local function base64_decode(b64str)
     return ffi.string(buf), cnt
 end
 
+--- Print out the kv-pairs of a Lua table, with a prefix per line.
+-- Use to enumerate the contents of a INI data table.
+-- @param t INI data table
+-- @param section line prefix, may be empty
+-- @return Nothing
 local function debug_enum(t, section)
     for k,v in pairs(t) do
         if type(v) == "table" then
@@ -90,6 +94,12 @@ local function debug_enum(t, section)
     end
 end
 
+--- Parse a flat INI file and map the data to a Lua table.
+-- The resulting kv-pairs will always be pairs of strings.
+-- @param file the file to read the data from
+-- @return NIL in case of an error (file does not exist or is not
+-- readable). In case of success: data table, table with invalid lines
+-- in the source file.
 local function read(file)
     if not Path.isfile(file) then return nil end
    
@@ -140,6 +150,15 @@ local function read(file)
     return data, rejected
 end
 
+--- Like read(), but treat values starting with the sequence `base64:`
+-- as special: the base64 encoded data will be decoded into a string
+-- value and may hold arbitrary binary data. Standard Lua string
+-- functions may not work reliably on these strings. Binary values will
+-- have a metatable with the key `__ini_is_binary` set to a TRUE value.
+-- @param file source file
+-- @return in case of an error: NIL. Otherwise: data table, table with
+-- lines rejected by the parser.
+-- @see read
 local function read64(file)
     if not Path.isfile(file) then return nil end
    
@@ -198,8 +217,12 @@ local function read64(file)
     return data, rejected
 end
 
-
-
+--- Like read(), but reads only nested INI files. There is no
+-- autodetection of the nesting, so be careful.
+-- @param file input file
+-- @return In case of an error. Otherwise: data table, table with
+-- rejected lines
+-- @see read()
 local function read_nested(file)
     if not Path.isfile(file) then return nil end
 
@@ -266,9 +289,19 @@ local function read_nested(file)
     return d, r
 end
 
+--- Writes a Lua table as a flat INI file to a file. Sections cannot be
+-- nested.
+-- @param file output file
+-- @param data data table. Format: { <SectionA> = { key = value[, ...] }, <SectionN>= { [...] } }
+-- @return In case of an error (could not open file, no input data):
+-- NIL. Else: true
+-- @see read()
 local function write(file, data)
     if type(data) ~= "table" then return nil end
     local file = io.open(file, "w")
+    if not file then
+        return nil
+    end
     for s,t in pairs(data) do
         file:write(string.format("[%s]\n", s))
         for k,v in pairs(t) do
@@ -279,9 +312,19 @@ local function write(file, data)
     return true
 end
 
+--- Like write(), but treats values with a metatable which has the key
+-- __ini_is_binary set to a TRUE value specially. These values will be
+-- encoded to base64 before being written out, allowing arbitrary binary
+-- data to be written. The data may be retrieved using only read64().
+-- @param file output file
+-- @param data data table
+-- @return NIL (could not open file or no data), otherwise: true
 local function write64(file, data)
     if type(data) ~= "table" then return nil end
     local file = io.open(file, "w")
+    if not file then
+        return nil
+    end
     for s,t in pairs(data) do
         file:write(string.format("[%s]\n", s))
         for k,v in pairs(t) do
@@ -297,6 +340,10 @@ local function write64(file, data)
     return true
 end
 
+--- Like write(), but can write a nested INI data structure.
+-- @param file output file
+-- @param data like in write(), but allowing nested sections: { A = { B -- = { k = v }, k = v }, B = { [...] } }
+-- @return NIL in case of an error, otherwise: TRUE
 local function write_nested(file, data)
     if type(data) ~= "table" then return nil end
     local file = io.open(file, "w")
