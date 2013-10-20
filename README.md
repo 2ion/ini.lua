@@ -1,7 +1,12 @@
 # ini.lua
 
+This README references: version 2.1
+
 This script implements a parser mapping .ini style configuration files to Lua
 tables and vice versa.
+
+The current release v2.1 is a DEVELOPMENT release. See the Changelog for
+changes relative to the 2.0 release.
 
 # INI format
 
@@ -13,7 +18,9 @@ I briefly describe the format ini.lua supports as of now.
 * Section names may consist of any character as in the [.]
   Lua regex symbol
 * Key names must not contain the = character and spaces [%s], values may contain any
-  character in [.]
+  character in [.].
+* EXCEPTION: if the read64/write64() API is used, Lua strings holding
+  arbitrary binary values may be passed.
 * Key names must not be preceeded by any [%s].
 * Lines beginning with # and empty lines will be ignored
 
@@ -102,10 +109,47 @@ ini.write_nested(outfile, data)
 data, rejected = ini.read_nested(outfile)
 ```
 
+# read64/write64
+
+This API works analog to the unnested read/write API, except for the
+following changes:
+
+* All values with a metatable holding a key __ini_is_binary which
+  evaluates as true will be stored in a base64 encoded form.
+* If a non-base64 value begins with the sequence "base64:", it will be
+  parsed as base64. This is a limitation and will be fixed in the
+  upcoming 2.2 release.
+* read64() will produce data tables with all the necessary metatables in
+  place.
+
+Example:
+
+```lua
+local ini = require("ini")
+local data = {
+    DATA = {
+        bin = 0xaf6723dc
+    },
+    STRINGS = {
+        str = "Hello World!"
+    }
+}
+
+-- setting a metatable for non-table data types requires the debug
+-- library!
+debug.setmetatable(data.DATA.bin, { __ini_is_binary = true })
+
+ini.write64("test.ini", data)
+
+-- is equivalent to the data referenced by $data
+local d = ini.read64("test.ini")
+```
+
 # Dependencies
 
-* Lua >= 5.1 (probably)
+* LuaJIT
 * lua-penlight's pl.path module
+* libb64 (http://libb64.sourceforge.net/)
 
 # License
 

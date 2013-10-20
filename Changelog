@@ -1,0 +1,7 @@
+ini.lua 2.1 (2013-10-20) (unstable)
+
+	- Development release
+	- adding read64() and write64() to support parsing strings with
+	  random binary data
+	- New dependencies: luajit (FFI), libb64 (C library for very fast
+	  base64 encoding/decoding
