@@ -48,10 +48,10 @@ local b64 = ffi.load("libb64.so.0d")
 -- @see base64_decode()
 local function base64_encode(str)
     local str = type(str) == "string" and str or tostring(str)
-    local len = #str + 1 -- we also encode empty strings
+    local len = #str + 1 -- we also encode empty strings!
     local inbuf = ffi.new("char[?]", len, str)
     local inlen = ffi.new("int", len)
-    local buf = ffi.new("char[?]", 2*len)
+    local buf = ffi.new("char[?]", 4 * ((len - len % 3 + 3)/3))
     local state = ffi.new("struct base64_encodestate[1]")
     local cnt = 0
 
@@ -67,10 +67,10 @@ end
 -- @return Lua string with the deoded data, conversion byte count
 -- @see base64_encode()
 local function base64_decode(b64str)
-    local len = #b64str + 1
+    local len = #b64str
     local inbuf = ffi.new("char[?]", len, b64str)
     local inlen = ffi.new("int", len)
-    local buf = ffi.new("char[?]", len)
+    local buf = ffi.new("char[?]", len) -- FIXME: use smallest length possible
     local state = ffi.new("struct base64_decodestate[1]")
 
     b64.base64_init_decodestate(state)
