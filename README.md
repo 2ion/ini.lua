@@ -8,6 +8,9 @@ tables and vice versa.
 The current release v2.1 is a DEVELOPMENT release. See the Changelog for
 changes relative to the 2.0 release.
 
+Stable releses are all releases with an even minor version number
+(currently: 2.0).
+
 # INI format
 
 I briefly describe the format ini.lua supports as of now.

@@ -150,6 +150,77 @@ local function read(file)
     return data, rejected
 end
 
+
+--- Like read(), but treat values starting with the sequence `base64:`
+-- as special: the base64 encoded data will be decoded into a string
+-- value and may hold arbitrary binary data. Standard Lua string
+-- functions may not work reliably on these strings. Binary values will
+-- have a metatable with the key `__ini_is_binary` set to a TRUE value.
+-- @param file source file
+-- @return in case of an error: NIL. Otherwise: data table, table with
+-- lines rejected by the parser.
+-- @see read
+local function read_typed(file)
+    if not Path.isfile(file) then return nil end
+   
+    local file = io.open(file, "r")
+    local data = {}
+    local rejected = {}
+    local parent = data
+    local i = 0
+    local m, n
+
+    local function parse(line)
+        local m, n
+
+        -- kv-pair
+        m,n = line:match("^([%w%p]-)=(.*)$")
+        if m then
+            local n_type, n_value = n:match("^([%a%d^:]*):(.*)")
+            if n_type == "base64" then
+                local v = base64_decode(n_value)
+                debug.setmetatable(v, { __ini_is_binary = true })
+                parent[m] = v
+            elseif n_type == "string" then
+                parent[m] = n_value
+            elseif n_type == "number" then
+                parent[m] = tonumber(n_value)
+            end
+            return true
+        end
+
+        -- section opening
+        m = line:match("^%[([%w%p]+)%][%s]*")
+        if m then
+            data[m] = {}
+            parent = data[m]
+            return true
+        end
+
+        if line:match("^$") then
+            return true
+        end
+
+        -- comment
+        if line:match("^#") then
+            return true
+        end
+
+        return false
+    end
+
+    for line in file:lines() do
+        i = i + 1
+        if not parse(line) then
+            table.insert(rejected, i)
+        end
+    end
+    file:close()
+    return data, rejected
+end
+
+
+
 --- Like read(), but treat values starting with the sequence `base64:`
 -- as special: the base64 encoded data will be decoded into a string
 -- value and may hold arbitrary binary data. Standard Lua string
@@ -178,8 +249,7 @@ local function read64(file)
             if n:match("^base64:") then
                 local n = n:match("^base64:(.*)")
                 local v = base64_decode(n)
-                local mt = getmetatable(v)
-                mt.__ini_is_binary = true
+                debug.setmetatable(v, { __ini_is_binary = true })
                 parent[m] = v
             else
                 parent[m] = n
@@ -340,6 +410,29 @@ local function write64(file, data)
     return true
 end
 
+local function write_typed(file, data)
+    if type(data) ~= "table" then return nil end
+    local file = io.open(file, "w")
+    if not file then
+        return nil
+    end
+    -- sections
+    for s,t in pairs(data) do
+        file:write(string.format("[%s]\n", s))
+        -- values
+        for k,v in pairs(t) do
+            local mt = getmetatable(v)
+            if mt and mt.__ini_is_binary then
+                file:write(string.format("%s=base64:%s\n", tostring(k), base64_encode(v)))
+            else
+                file:write(string.format("%s=%s:%s\n", tostring(k), type(v), tostring(v)))
+            end
+        end
+    end
+    file:close()
+    return true
+end
+
 --- Like write(), but can write a nested INI data structure.
 -- @param file output file
 -- @param data like in write(), but allowing nested sections: { A = { B -- = { k = v }, k = v }, B = { [...] } }
@@ -363,4 +456,14 @@ local function write_nested(file, data)
     return true
 end
 
-return { read = read, read64 = read64, read_nested = read_nested, write = write, write64 = write64, write_nested = write_nested, debug = { enum = debug_enum } }
+return {
+    read = read,
+    read64 = read64,
+    read_nested = read_nested,
+    write = write,
+    write64 = write64,
+    write_nested = write_nested,
+    read_typed = read_typed,
+    write_typed = write_typed,
+    debug = { enum = debug_enum }
+}
