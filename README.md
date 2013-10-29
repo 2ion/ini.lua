@@ -20,7 +20,7 @@ Make sure all dependencies are installed (-> DEPENDENCIES.
 git clone https://github.com/2ion/ini.lua.git lua-ini && cd lua-ini
 
 # should exit without errors
-make test && doc
+make test doc
 ```
 
 If the tests ran successfully, you can take the module `ini.lua` from
