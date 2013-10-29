@@ -11,6 +11,27 @@ changes relative to the 2.0 release.
 Stable releses are all releases with an even minor version number
 (currently: 2.0).
 
+# Installation
+
+Make sure all dependencies are installed (-> DEPENDENCIES.
+
+```shell
+# clone the repository
+git clone https://github.com/2ion/ini.lua.git lua-ini && cd lua-ini
+
+# should exit without errors
+make test && doc
+```
+
+If the tests ran successfully, you can take the module `ini.lua` from
+the repository and put it wherever you want -> "installed".
+
+## Dependencies
+
+* LuaJIT
+* lua-penlight's pl.path module
+* libb64 (http://libb64.sourceforge.net/)
+
 # INI format
 
 I briefly describe the format ini.lua supports as of now.
@@ -158,7 +179,7 @@ losing any type information.
 
 Example:
 
-```
+```lua
 local ini = require("ini")
 
 local data = {
@@ -185,12 +206,6 @@ ini.write_typed("test-typed.1.ini", b)
 -- the data returned from ini.read_typed(...) is equivalent to the
 -- data stored in the input `data` table.
 ```
-
-# Dependencies
-
-* LuaJIT
-* lua-penlight's pl.path module
-* libb64 (http://libb64.sourceforge.net/)
 
 # Documentation
 
