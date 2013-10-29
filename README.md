@@ -148,6 +148,44 @@ ini.write64("test.ini", data)
 local d = ini.read64("test.ini")
 ```
 
+# ```read_typed/write_typed```
+
+This is the logical extension of the read64/write64 API, to which it
+adds the ability to preserve in addition to the base64 binary data type
+all native Lua data types minus table and user data, meaning your
+strings, numbers, boolean, or binary data can be stored and read without
+losing any type information.
+
+Example:
+
+```
+local ini = require("ini")
+
+local data = {
+    Time = {
+        hour = 6,
+        minute = 50,
+        second = 13,
+        milliseconds = 493,
+        day = "Mo",
+        month = "Nov"
+    },
+    Location = {
+        x = 14.4,
+        y = 22.1,
+        ishere = true
+    }
+}
+
+ini.write_typed("test-typed.0.ini", data)
+local b = ini.read_typed("test-typed.0.ini")
+ini.write_typed("test-typed.1.ini", b)
+
+-- test-typed.{0,1}.ini contain exactly the same data.
+-- the data returned from ini.read_typed(...) is equivalent to the
+-- data stored in the input `data` table.
+```
+
 # Dependencies
 
 * LuaJIT

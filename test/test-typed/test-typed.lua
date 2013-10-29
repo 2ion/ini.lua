@@ -1,6 +1,7 @@
 local sep = package.config:sub(1,1)
 package.path = string.format("..%s..%s?.lua;", sep, sep) .. package.path
 --
+
 local ini = require("ini")
 
 local data = {
@@ -14,7 +15,8 @@ local data = {
     },
     Location = {
         x = 14.4,
-        y = 22.1
+        y = 22.1,
+        isthere = true
     }
 }
 

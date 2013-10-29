@@ -185,6 +185,8 @@ local function read_typed(file)
                 parent[m] = n_value
             elseif n_type == "number" then
                 parent[m] = tonumber(n_value)
+            elseif n_type == "boolean" then
+                parent[m] = n_value == "true" and true or "false"
             end
             return true
         end
