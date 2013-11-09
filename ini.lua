@@ -243,10 +243,11 @@ local function read64(file)
     local m, n
 
     local function parse(line)
-        local m, n
+        local line = line
+        local m, n = nil, nil
 
         -- kv-pair
-        m,n = line:match("^([%w%p]-)=(.*)$")
+        m, n = line:match("^([%w%p]-)=(.*)$")
         if m then
             if n:match("^base64:") then
                 local n = n:match("^base64:(.*)")
